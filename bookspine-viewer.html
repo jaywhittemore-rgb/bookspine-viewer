@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BookSpine Viewer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #2d3436;
+            --accent: #00b894;
+            --bg: #f8f9fa;
+            --text: #2d3436;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        #app {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        #header {
+            background: linear-gradient(135deg, var(--primary) 0%, #636e72 100%);
+            color: white;
+            padding: 1rem;
+            position: relative;
+            z-index: 100;
+            box-shadow: 0 2px 20px var(--shadow);
+        }
+        
+        h1 {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+        }
+        
+        /* Camera Container */
+        #camera-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #video {
+            position: absolute;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            object-fit: cover;
+        }
+        
+        /* Controls */
+        #controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
+            padding: 2rem 1rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 10;
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            font-family: 'Outfit', sans-serif;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        button.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(0, 184, 148, 0.5);
+        }
+        
+        .icon-btn {
+            width: 56px;
+            height: 56px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            border-radius: 50%;
+        }
+        
+        /* Zoom Controls */
+        #zoom-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #zoom-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        #zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 184, 148, 0.5);
+        }
+        
+        #zoom-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0, 184, 148, 0.5);
+        }
+        
+        .zoom-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            min-width: 40px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        /* Status Messages */
+        #status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 2rem 2.5rem;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 80%;
+            z-index: 50;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #status.hidden {
+            display: none;
+        }
+        
+        .status-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .status-text {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            font-weight: 300;
+        }
+        
+        /* Rotation Indicator */
+        #rotation-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            z-index: 20;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Freeze Overlay */
+        #freeze-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 184, 148, 0.1);
+            border: 3px solid var(--accent);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 5;
+        }
+        
+        #freeze-overlay.active {
+            opacity: 1;
+        }
+        
+        @media (max-width: 400px) {
+            h1 {
+                font-size: 1rem;
+            }
+            
+            button {
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
+            }
+            
+            .icon-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="header">
+            <h1><span class="logo">📚</span> BookSpine Viewer</h1>
+        </div>
+        
+        <div id="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <div id="rotation-indicator">0°</div>
+            <div id="freeze-overlay"></div>
+            
+            <div id="status">
+                <div class="status-icon">📷</div>
+                <div class="status-text">Tap "Start Camera" to begin</div>
+            </div>
+            
+            <div id="controls" style="display: none;">
+                <div class="control-row">
+                    <button id="rotate-left" title="Rotate Left">↺ 90°</button>
+                    <button id="rotate-right" title="Rotate Right">↻ 90°</button>
+                    <button id="freeze-btn" title="Freeze Frame">❄️ Freeze</button>
+                    <button id="flip-camera" title="Flip Camera">🔄</button>
+                </div>
+                
+                <div id="zoom-container">
+                    <span class="zoom-label">1.0x</span>
+                    <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1">
+                    <span class="zoom-label" id="zoom-value">1.0x</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class BookSpineViewer {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.status = document.getElementById('status');
+                this.controls = document.getElementById('controls');
+                this.rotationIndicator = document.getElementById('rotation-indicator');
+                this.freezeOverlay = document.getElementById('freeze-overlay');
+                
+                this.rotation = 0;
+                this.zoom = 1;
+                this.stream = null;
+                this.facingMode = 'environment'; // Start with back camera
+                this.isFrozen = false;
+                this.canvas = null;
+                
+                this.init();
+            }
+            
+            init() {
+                // Button events
+                document.getElementById('rotate-left').addEventListener('click', () => this.rotate(-90));
+                document.getElementById('rotate-right').addEventListener('click', () => this.rotate(90));
+                document.getElementById('freeze-btn').addEventListener('click', () => this.toggleFreeze());
+                document.getElementById('flip-camera').addEventListener('click', () => this.flipCamera());
+                
+                // Zoom slider
+                const zoomSlider = document.getElementById('zoom-slider');
+                const zoomValue = document.getElementById('zoom-value');
+                zoomSlider.addEventListener('input', (e) => {
+                    this.zoom = parseFloat(e.target.value);
+                    zoomValue.textContent = `${this.zoom.toFixed(1)}x`;
+                    this.updateVideoTransform();
+                });
+                
+                // Start camera automatically
+                setTimeout(() => this.startCamera(), 500);
+            }
+            
+            async startCamera() {
+                try {
+                    this.showStatus('📷', 'Starting camera...');
+                    
+                    // Stop existing stream
+                    if (this.stream) {
+                        this.stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    const constraints = {
+                        video: {
+                            facingMode: this.facingMode,
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    };
+                    
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.video.srcObject = this.stream;
+                    
+                    // Wait for video to be ready
+                    await new Promise(resolve => {
+                        this.video.onloadedmetadata = () => {
+                            this.video.play();
+                            resolve();
+                        };
+                    });
+                    
+                    this.hideStatus();
+                    this.controls.style.display = 'flex';
+                    this.updateVideoTransform();
+                    
+                } catch (error) {
+                    console.error('Camera error:', error);
+                    this.showStatus('⚠️', 'Camera access denied. Please enable camera permissions in your browser settings.');
+                }
+            }
+            
+            rotate(degrees) {
+                this.rotation = (this.rotation + degrees) % 360;
+                if (this.rotation < 0) this.rotation += 360;
+                this.updateVideoTransform();
+            }
+            
+            async flipCamera() {
+                this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                await this.startCamera();
+            }
+            
+            toggleFreeze() {
+                const freezeBtn = document.getElementById('freeze-btn');
+                
+                if (this.isFrozen) {
+                    // Unfreeze - restore video
+                    this.video.style.display = 'block';
+                    if (this.canvas) {
+                        this.canvas.remove();
+                        this.canvas = null;
+                    }
+                    this.freezeOverlay.classList.remove('active');
+                    freezeBtn.classList.remove('active');
+                    freezeBtn.textContent = '❄️ Freeze';
+                    this.isFrozen = false;
+                } else {
+                    // Freeze - capture current frame
+                    this.canvas = document.createElement('canvas');
+                    const ctx = this.canvas.getContext('2d');
+                    
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
+                    ctx.drawImage(this.video, 0, 0);
+                    
+                    // Apply same styles as video
+                    this.canvas.style.position = 'absolute';
+                    this.canvas.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                    this.canvas.style.objectFit = 'cover';
+                    this.canvas.style.transform = this.video.style.transform;
+                    
+                    document.getElementById('camera-container').insertBefore(this.canvas, this.video);
+                    this.video.style.display = 'none';
+                    
+                    this.freezeOverlay.classList.add('active');
+                    freezeBtn.classList.add('active');
+                    freezeBtn.textContent = '▶️ Resume';
+                    this.isFrozen = true;
+                }
+            }
+            
+            updateVideoTransform() {
+                const element = this.canvas || this.video;
+                let transform = `rotate(${this.rotation}deg) scale(${this.zoom})`;
+                
+                element.style.transform = transform;
+                this.rotationIndicator.textContent = `${this.rotation}°`;
+                
+                // Adjust video size based on rotation for proper fitting
+                const container = document.getElementById('camera-container');
+                const containerWidth = container.offsetWidth;
+                const containerHeight = container.offsetHeight;
+                
+                if (this.rotation === 90 || this.rotation === 270) {
+                    // Swap dimensions when rotated 90 or 270 degrees
+                    element.style.width = `${containerHeight}px`;
+                    element.style.height = `${containerWidth}px`;
+                } else {
+                    element.style.width = `${containerWidth}px`;
+                    element.style.height = `${containerHeight}px`;
+                }
+            }
+            
+            showStatus(icon, text) {
+                this.status.querySelector('.status-icon').textContent = icon;
+                this.status.querySelector('.status-text').textContent = text;
+                this.status.classList.remove('hidden');
+            }
+            
+            hideStatus() {
+                this.status.classList.add('hidden');
+            }
+        }
+        
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new BookSpineViewer();
+        });
+    </script>
+</body>
+</html>
